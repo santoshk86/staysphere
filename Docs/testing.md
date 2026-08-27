@@ -1,10 +1,17 @@
-# StaySphere — Backend Testing (Stage 2)
+# StaySphere — Testing (Stage 2)
 
-This document describes the automated backend test suite: what it covers, how it
-is structured, and how to run it.
+This document describes the automated test suites: what they cover, how they are
+structured, and how to run them.
 
-/ Scope of this phase: **backend only**. Frontend (Vitest / RTL) and end-to-end
-(Playwright) tests are a separate, later effort and are not part of this suite.
+* **Part I — Backend** (below): xUnit unit / integration / API / concurrency tests.
+* **Part II — Frontend** ([jump](#part-ii--frontend-unit--component-tests)):
+  Vitest + React Testing Library unit / component tests.
+* **End-to-end (Playwright)** is a separate, later effort and is not part of
+  either suite yet.
+
+---
+
+# Part I — Backend tests
 
 ---
 
@@ -334,3 +341,189 @@ test creates and tears down its own SQLite database.
 * The backend email check (`MailAddress`) is more permissive than the frontend
   regex (e.g. it accepts a dotless domain). Tests use only unambiguous invalid
   inputs.
+
+---
+
+# Part II — Frontend unit / component tests
+
+## F1. Testing approach
+
+* **Runner:** Vitest 3 (`jsdom` environment) with `@vitejs/plugin-react`.
+* **Component testing:** React Testing Library 16 + `@testing-library/user-event`
+  + `@testing-library/jest-dom`.
+* No test framework existed before this phase; nothing was replaced.
+
+Principles applied:
+
+* **Test what the user sees and does.** Queries are accessible-first
+  (`getByRole`, `getByLabelText`, `getByText`); interactions go through
+  `user-event`, not hand-called handlers. No assertions on component state or
+  other React internals.
+* **Mock the network boundary only.** `src/lib/api.ts`'s request functions
+  (`searchRooms`, `getRoom`, `createReservation`, `getReservation`) are mocked;
+  the real `ApiError` class and `firstFieldErrors` mapper are kept. `next/link`
+  is stubbed with a plain `<a>` (global, in `vitest.setup.tsx`); `next/navigation`
+  (`useRouter`, `notFound`) is stubbed per file so `router.push` / `notFound()`
+  calls can be asserted.
+* **Deterministic.** `user-event` runs with `delay: null`; async UI is awaited
+  via `findBy*` / `waitFor`; the one in-flight-request test resolves its promise
+  explicitly. Dates in fixtures are far-future literals so "past date" rules are
+  stable regardless of the clock. Verified stable across repeated runs.
+* **No snapshots. No Tailwind / Next-internal assertions.**
+
+### Async Server Component pages
+
+The route `page.tsx` files are `async` Server Components. They are tested by
+calling the function and rendering its resolved output:
+`render(await RoomDetailsPage(props))`. React's client renderer cannot resume a
+*nested* async server component across a `<Suspense>` boundary, so the streamed
+results section of `/rooms` is tested through its now-exported `RoomResults`
+component directly (see F4 / F6).
+
+## F2. How to run
+
+From `frontend/staysphere-web/`:
+
+```bash
+npm test           # vitest run (one-shot)
+npm run test:watch
+npm run typecheck  # tsc --noEmit  (also type-checks the test files)
+npm run lint       # eslint
+npm run build      # next build (production)
+```
+
+All four commands pass. `npm test` runs 106 tests across 17 files in ~13 s and is
+deterministic across repeated runs.
+
+## F3. Unit test scope — utilities (`src/lib`)
+
+| File | Covers |
+|------|--------|
+| `format.test.ts` | `formatCurrency` (USD); `parseCalendarDate` (shape validation; a test documents that out-of-range parts roll over like `Date`); `formatDate` (friendly label + raw-string fallback); `nightsBetween` (whole nights, null for zero/inverted/invalid); `roomInitials` |
+| `validation.test.ts` | `validateSearch` — required fields, malformed date, past check-in (rejected by default, allowed for shared links), check-out ≤ check-in, guest count missing / `< 1` / non-integer / over max / at max, whitespace trimming. `validateBooking` — name required & min length, email format, special-requests length limit & boundary, trimming, empty special requests → `undefined` |
+| `api.test.ts` | request URL / query / verb / body / headers for all four calls; success returns the parsed body; error envelope → `ApiError` with `status` / `code` / `fieldErrors` and `isConflict` / `isValidation` / `isNotFound` / `isNetwork`; non-JSON error body → generic `ServerError`; thrown `fetch` → network `ApiError` (status 0); 204 → `undefined`; `firstFieldErrors` flattening + key casing |
+
+## F4. Component test scope (`src/components`, `src/app`)
+
+**Search (`SearchForm`, `rooms/page.tsx`, `RoomResults`)**
+
+* form renders labelled check-in / check-out / guest inputs and a submit button
+* user can change the guest count; a corrected field clears its error
+* empty required fields → inline errors, no navigation
+* check-out not after check-in → error, no navigation
+* guest count `< 1` → error, no navigation
+* valid search → `router.push("/rooms?checkIn=…&checkOut=…&guests=…")`
+* results page: no query → prompt (API not called); invalid query → "Check your
+  search" (API not called); valid query → parsed criteria with **numeric** guests
+  reach `searchRooms`
+* `RoomResults`: renders returned rooms in a labelled region with a count;
+  **empty** → "No rooms available" with the dates / guests echoed; **API error**
+  → "Search failed" + retry hint; API error message surfaced when present
+
+**Room listing (`RoomCard`, `RoomImage`, `AmenityList`)**
+
+* room type, price, capacity, room number, description shown
+* image placeholder is an accessible decorative element, not a real `<img src>`
+* up to four amenities listed; singular / plural guest noun
+* "View details" links to `/rooms/{id}?…` carrying the search dates
+* `AmenityList` renders nothing when empty
+
+**Room details (`rooms/[roomId]/page.tsx`)**
+
+* type, description, price, capacity, amenities, image placeholder render
+* "Book this room" CTA carries the stay dates to `/booking/{id}?…`
+* incomplete search → "Add your dates" + "Choose dates" link, no CTA
+* party over capacity → warning, no CTA
+* unknown room → `notFound()`; other API failure → error alert + back link (no 404)
+
+**Booking form (`BookingForm`) — highest-priority area**
+
+* name / email / special-requests fields render
+* missing required fields → inline errors, request not sent
+* invalid email → error, request not sent
+* valid submit → `createReservation` called with exactly
+  `{ roomId, checkIn, checkOut, guestCount, guestName, guestEmail, specialRequests }`
+  from the room + criteria + form, then `router.push` to the confirmation route
+* in-flight: button disabled, "Confirming your booking…" shown
+* **duplicate submission**: three rapid clicks → `createReservation` called once
+* **409** → dedicated "just booked by someone else" alert + "Search for another
+  room" link to the same dates; button re-enabled; no navigation
+* **400 field errors** → mapped back onto the matching input
+* **400 non-field error** → shown in the summary alert
+* **500** → server message shown, retry allowed
+* **network failure** → connectivity message
+* **404** → "no longer available, start a new search"
+
+**Booking page (`booking/[roomId]/page.tsx`)**
+
+* renders the form + stay summary (room, formatted dates, guests, price
+  breakdown with total) for a valid room + search
+* missing / invalid dates → "Missing stay details" + "Start a search" (API not
+  called)
+* party over capacity → blocked with explanation, no form
+* unknown room → `notFound()`; load failure → error alert
+
+**Confirmation (`booking/confirmation/[reference]/page.tsx`)**
+
+* reference, guest name + email, room type + number, **formatted** check-in /
+  check-out, nights, guest count, price total and special requests all shown
+* special-requests section omitted when there were none
+* unknown reference → `notFound()`; load failure → error alert
+
+**Home, error & loading states**
+
+* home page: H1 value proposition, the search form, the three-step explainer
+* `not-found.tsx`: "Page not found" + link back to `/rooms`
+* `error.tsx`: recovery message; "Try again" calls `reset()`
+* all four route `loading.tsx` files show an accessible loading message
+
+## F5. Navigation coverage
+
+The Search → Results → Details → Booking → Confirmation flow is verified by
+asserting, at each step, the user-visible navigation the step produces — the
+`router.push` target (`SearchForm`, `BookingForm`) or the `href` of the CTA
+(`RoomCard` → details, details page → booking, confirmation link back to search
+on a 409). Next.js router internals are not tested.
+
+## F6. Production changes made during this phase
+
+1. **`tsconfig.json` — removed `"ignoreDeprecations": "6.0"`.** This value
+   (added in commit `6b964b8`) is invalid for the installed TypeScript 5.9.3, so
+   `next build` was **already failing** at its type-check step before any test
+   work. With the current toolchain there are no deprecations to suppress;
+   removing the line restores a green `tsc` / `next build`. This is a real
+   pre-existing defect fix, not a test convenience.
+2. **`src/app/rooms/page.tsx` — `RoomResults` is now `export`ed.** Behaviour is
+   unchanged (Next.js ignores non-reserved named exports from a route file; the
+   build still emits the same six routes). The export is a testability seam: the
+   client-side test renderer cannot resume this nested async server component
+   through `<Suspense>`, so its results / empty / error rendering is tested
+   against the component directly.
+
+No UI behaviour was changed to make a test pass. One test assertion was corrected
+during authoring (`parseCalendarDate` validates shape, not calendar range — the
+test now documents that rather than asserting a stricter contract the code never
+promised).
+
+## F7. Known gaps (frontend)
+
+* **`layout.tsx`** (fonts, header, footer chrome) is not rendered in tests —
+  low value, and `next/font` needs its own mock.
+* The **`<Suspense>` fallback swap** inside `rooms/page.tsx` (the
+  "Searching available rooms…" spinner giving way to results) is a React runtime
+  behaviour; it is covered end-to-end only once Playwright exists.
+* **Real navigation** (route transitions, scroll restoration, streaming) is out
+  of scope for component tests — the main thing Playwright will add.
+* **Accessibility** is checked via role / label queries, not an automated axe pass.
+* No visual / CSS / responsive assertions (by design).
+* Client/server date-skew (`todayIso()` local vs backend UTC) is a product note
+  from the code review, not covered here.
+
+## F8. Recommended next step
+
+**Playwright E2E.** Drive a real browser against the running Next.js app + the
+real API for the full journey — Search → Results → Room details → Booking →
+Confirmation — plus the failure flows (no availability; room taken between search
+and booking → 409; API down; validation errors) and genuine back / forward
+navigation. That closes the two biggest gaps above: real routing / streaming
+behaviour and true frontend↔backend integration.

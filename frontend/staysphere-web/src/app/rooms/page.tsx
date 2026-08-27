@@ -13,7 +13,9 @@ function firstValue(value: string | string[] | undefined): string {
   return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
 }
 
-async function RoomResults({ criteria }: { criteria: SearchCriteria }) {
+// Exported so the results / empty / error rendering can be unit-tested directly;
+// Next.js ignores non-reserved named exports from a route file.
+export async function RoomResults({ criteria }: { criteria: SearchCriteria }) {
   let rooms;
   try {
     rooms = await searchRooms(criteria);
