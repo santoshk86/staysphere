@@ -1,0 +1,52 @@
+@host = http://localhost:5276
+
+### Search available rooms
+GET {{host}}/api/rooms/search?checkIn=2026-09-16&checkOut=2026-09-19&guests=2
+Accept: application/json
+
+### Search - capacity filter (families)
+GET {{host}}/api/rooms/search?checkIn=2026-09-16&checkOut=2026-09-19&guests=4
+Accept: application/json
+
+### Search - invalid range (expect 400)
+GET {{host}}/api/rooms/search?checkIn=2026-09-19&checkOut=2026-09-16&guests=2
+Accept: application/json
+
+### Room details
+GET {{host}}/api/rooms/1
+Accept: application/json
+
+### Room details - not found (expect 404)
+GET {{host}}/api/rooms/9999
+Accept: application/json
+
+### Create a reservation (expect 201)
+POST {{host}}/api/reservations
+Content-Type: application/json
+
+{
+  "roomId": 4,
+  "checkIn": "2026-10-06",
+  "checkOut": "2026-10-09",
+  "guestCount": 2,
+  "guestName": "Jordan Blake",
+  "guestEmail": "jordan.blake@example.com",
+  "specialRequests": "Late check-in around 11pm"
+}
+
+### Create the same reservation again (expect 409 conflict)
+POST {{host}}/api/reservations
+Content-Type: application/json
+
+{
+  "roomId": 4,
+  "checkIn": "2026-10-06",
+  "checkOut": "2026-10-09",
+  "guestCount": 2,
+  "guestName": "Sam Lee",
+  "guestEmail": "sam.lee@example.com"
+}
+
+### Retrieve a confirmation (replace with a real reference)
+GET {{host}}/api/reservations/STAY-XXXXXXXX
+Accept: application/json

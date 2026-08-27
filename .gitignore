@@ -1,0 +1,39 @@
+# ----- .NET -----
+bin/
+obj/
+*.user
+*.suo
+.vs/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+TestResults/
+*.trx
+*.coverage
+*.received.*
+
+# ----- SQLite database (created at runtime / migrations) -----
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+
+# ----- Node / Next.js (frontend, Stage 2) -----
+node_modules/
+.next/
+out/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ----- Editors / OS -----
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+
+# ----- Environment -----
+.env
+.env.local
+.env.*.local

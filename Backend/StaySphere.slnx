@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="StaySphere.Api/StaySphere.Api.csproj" />
+  <Project Path="StaySphere.Application/StaySphere.Application.csproj" />
+  <Project Path="StaySphere.Domain/StaySphere.Domain.csproj" />
+  <Project Path="StaySphere.Infrastructure/StaySphere.Infrastructure.csproj" />
+  <Project Path="StaySphere.Tests/StaySphere.Tests.csproj" />
+</Solution>

@@ -1,0 +1,31 @@
+{
+  "_comment": "Extra rooms loaded on API startup. A record is inserted only if no row with that id already exists, so this file is safe to keep and edit. Ids 1-10 (amenities), 1-4 (roomTypes) and 1-8 (rooms) are used by the base migration seed.",
+
+  "amenities": [
+    { "id": 11, "name": "Private pool" },
+    { "id": 12, "name": "Kitchenette" }
+  ],
+
+  "roomTypes": [
+    {
+      "id": 5,
+      "name": "Penthouse Suite",
+      "description": "Top-floor suite with panoramic views, a private terrace and a plunge pool.",
+      "pricePerNight": 899.00,
+      "maxGuests": 4,
+      "imageUrl": "/images/rooms/penthouse-suite.svg",
+      "amenityIds": [1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12]
+    }
+  ],
+
+  "rooms": [
+    { "id": 9,  "roomNumber": "104", "roomTypeId": 1 },
+    { "id": 10, "roomNumber": "203", "roomTypeId": 2 },
+    { "id": 11, "roomNumber": "303", "roomTypeId": 3 },
+    { "id": 12, "roomNumber": "601", "roomTypeId": 5 },
+    { "id": 13, "roomNumber": "602", "roomTypeId": 5 },
+    { "id": 14, "roomNumber": "603", "roomTypeId": 2 },
+    { "id": 15, "roomNumber": "604", "roomTypeId": 3 },
+    { "id": 16, "roomNumber": "605", "roomTypeId": 1 }
+  ]
+}
