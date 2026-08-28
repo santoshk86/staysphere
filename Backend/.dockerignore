@@ -1,0 +1,43 @@
+# Build context is Backend/. Keep the context and final image minimal.
+
+# --- build output ---
+**/bin/
+**/obj/
+**/out/
+artifacts/
+
+# --- test project & test artifacts (not part of the runtime image) ---
+StaySphere.Tests/
+**/TestResults/
+**/*.trx
+**/*.coverage
+**/*.received.*
+
+# --- Node (frontend lives elsewhere, but be defensive) ---
+**/node_modules/
+
+# --- Git metadata ---
+.git/
+.gitignore
+.gitattributes
+
+# --- local SQLite database (must NOT ship in the image; supplied via a volume) ---
+**/*.db
+**/*.db-shm
+**/*.db-wal
+**/*.sqlite
+
+# --- IDE / editor / OS files ---
+.vs/
+.vscode/
+.idea/
+**/*.user
+**/*.suo
+**/*.DS_Store
+**/Thumbs.db
+**/*.swp
+
+# --- docs & container files (not needed to build the app) ---
+**/*.md
+Dockerfile
+.dockerignore

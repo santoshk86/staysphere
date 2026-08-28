@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: staysphere-api
+  namespace: staysphere
+  labels:
+    app: staysphere-api
+    app.kubernetes.io/name: staysphere-api
+    app.kubernetes.io/part-of: staysphere
+spec:
+  # NodePort keeps local access simple: reach the API from the host browser at
+  #   http://localhost:30080  (Docker Desktop / minikube tunnel / kind port map)
+  # No Ingress controller is required for a single local service.
+  type: NodePort
+  selector:
+    app: staysphere-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      nodePort: 30080

@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: staysphere-api-config
+  namespace: staysphere
+  labels:
+    app.kubernetes.io/name: staysphere-api
+    app.kubernetes.io/part-of: staysphere
+# Non-secret runtime configuration, kept out of the image and out of the
+# Deployment spec. No secrets belong here; if one is ever needed use a Secret
+# object that is NOT committed to source control.
+data:
+  ASPNETCORE_ENVIRONMENT: "Production"
+  # Kestrel listen port (also the image default; set explicitly for clarity).
+  ASPNETCORE_HTTP_PORTS: "8080"
+
+  # SQLite database file on the mounted PersistentVolume (see pvc.yaml).
+  # The application reads ConnectionStrings:StaySphere -> env key
+  # ConnectionStrings__StaySphere (StaySphere.Infrastructure/DependencyInjection.cs).
+  ConnectionStrings__StaySphere: "Data Source=/app/data/staysphere.db"
+  # Requested key from the deployment brief. The current code does NOT read
+  # "DefaultConnection"; it is provided here for compliance / forward
+  # compatibility and points at the same file so behaviour cannot diverge.
+  ConnectionStrings__DefaultConnection: "Data Source=/app/data/staysphere.db"
+
+  # Allowed browser origin for the (not-yet-deployed) frontend.
+  Cors__AllowedOrigins__0: "http://localhost:3000"

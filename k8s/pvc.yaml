@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: staysphere-data
+  namespace: staysphere
+  labels:
+    app.kubernetes.io/name: staysphere-api
+    app.kubernetes.io/part-of: staysphere
+spec:
+  # SQLite is a single writer on a single file: one node, one mount.
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  # No storageClassName: use the cluster's default StorageClass. On the common
+  # local clusters that resolves to a node-local provisioner:
+  #   Docker Desktop -> "hostpath" ; minikube -> "standard" ; kind -> "standard"
+  #   (rancher-desktop / k3d -> "local-path")
+  # A node-local volume is required: SQLite WAL locking is unreliable on NFS/SMB.
